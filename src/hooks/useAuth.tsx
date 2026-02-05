@@ -30,16 +30,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         if (session?.user) {
           // Fetch profile
-          const { data } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('user_id', session.user.id)
-            .single();
-          setProfile(data as Profile | null);
+           setTimeout(async () => {
+             const { data } = await supabase
+               .from('profiles')
+               .select('*')
+               .eq('user_id', session.user.id)
+               .maybeSingle();
+             setProfile(data as Profile | null);
+             setLoading(false);
+           }, 0);
         } else {
           setProfile(null);
+           setLoading(false);
         }
-        setLoading(false);
       }
     );
 
@@ -50,6 +53,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!session) {
         setLoading(false);
       }
+       // If there is a session, the onAuthStateChange will handle setting loading to false
     });
 
     return () => subscription.unsubscribe();
