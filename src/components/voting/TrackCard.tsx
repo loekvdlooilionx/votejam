@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Play, ThumbsUp, Music, Users } from 'lucide-react';
+import { Play, ThumbsUp, Music, Users, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Track } from '@/types';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -61,7 +61,19 @@ interface TrackCardProps {
 
       {/* Track Info */}
       <div className="flex-1 min-w-0">
-        <h4 className="font-semibold text-foreground truncate">{track.title}</h4>
+        <div className="flex items-center gap-2">
+          <h4 className="font-semibold text-foreground truncate">{track.title}</h4>
+          <a
+            href={`https://www.youtube.com/results?search_query=${encodeURIComponent(track.title + ' ' + track.artist)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="text-destructive hover:text-destructive/80 transition-colors flex-shrink-0"
+            title="Zoek op YouTube"
+          >
+            <ExternalLink className="w-3.5 h-3.5" />
+          </a>
+        </div>
         <p className="text-sm text-muted-foreground truncate">{track.artist}</p>
       </div>
 
