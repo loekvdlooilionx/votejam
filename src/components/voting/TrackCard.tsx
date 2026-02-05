@@ -9,9 +9,10 @@ interface TrackCardProps {
   onVote: () => void;
   canVote: boolean;
   hasVoted?: boolean;
+   onPlay?: () => void;
 }
 
-export function TrackCard({ track, rank, onVote, canVote, hasVoted }: TrackCardProps) {
+ export function TrackCard({ track, rank, onVote, canVote, hasVoted, onPlay }: TrackCardProps) {
   return (
     <motion.div
       initial={{ opacity: 0, x: -20 }}
@@ -27,7 +28,12 @@ export function TrackCard({ track, rank, onVote, canVote, hasVoted }: TrackCardP
       </div>
 
       {/* Album Art */}
-      <div className="w-14 h-14 rounded-md overflow-hidden bg-secondary flex-shrink-0 relative group">
+       <div 
+         className={`w-14 h-14 rounded-md overflow-hidden bg-secondary flex-shrink-0 relative group ${
+           track.preview_url && onPlay ? 'cursor-pointer' : ''
+         }`}
+         onClick={() => track.preview_url && onPlay?.()}
+       >
         {track.album_image_url ? (
           <img
             src={track.album_image_url}
@@ -66,7 +72,7 @@ export function TrackCard({ track, rank, onVote, canVote, hasVoted }: TrackCardP
         disabled={!canVote || hasVoted}
         className="flex-shrink-0"
       >
-        {hasVoted ? 'Voted' : 'Vote'}
+         {hasVoted ? 'Gestemd' : 'Stem'}
       </Button>
     </motion.div>
   );

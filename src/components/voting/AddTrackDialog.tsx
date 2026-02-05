@@ -1,47 +1,17 @@
-import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+ import { useState, useCallback } from 'react';
+ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Search, Music, Loader2, AlertCircle } from 'lucide-react';
+ import { Plus, Search, Music, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { SpotifySearchResult } from '@/types';
+ import { SpotifySearchResult } from '@/types';
+ import { supabase } from '@/integrations/supabase/client';
+ import { toast } from 'sonner';
 
 interface AddTrackDialogProps {
   onAddTrack: (track: SpotifySearchResult) => Promise<void>;
   disabled?: boolean;
 }
-
-// Mock search results for demo (will be replaced with Spotify API)
-const mockResults: SpotifySearchResult[] = [
-  {
-    id: '1',
-    name: 'Blinding Lights',
-    artists: [{ name: 'The Weeknd' }],
-    album: { name: 'After Hours', images: [{ url: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=100&h=100&fit=crop' }] },
-    preview_url: null,
-  },
-  {
-    id: '2',
-    name: 'Levitating',
-    artists: [{ name: 'Dua Lipa' }],
-    album: { name: 'Future Nostalgia', images: [{ url: 'https://images.unsplash.com/photo-1514320291840-2e0a9bf2a9ae?w=100&h=100&fit=crop' }] },
-    preview_url: null,
-  },
-  {
-    id: '3',
-    name: 'Stay',
-    artists: [{ name: 'The Kid LAROI, Justin Bieber' }],
-    album: { name: 'F*CK LOVE 3', images: [{ url: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=100&h=100&fit=crop' }] },
-    preview_url: null,
-  },
-  {
-    id: '4',
-    name: 'Heat Waves',
-    artists: [{ name: 'Glass Animals' }],
-    album: { name: 'Dreamland', images: [{ url: 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=100&h=100&fit=crop' }] },
-    preview_url: null,
-  },
-];
 
 export function AddTrackDialog({ onAddTrack, disabled }: AddTrackDialogProps) {
   const [open, setOpen] = useState(false);
@@ -50,21 +20,25 @@ export function AddTrackDialog({ onAddTrack, disabled }: AddTrackDialogProps) {
   const [results, setResults] = useState<SpotifySearchResult[]>([]);
   const [addingId, setAddingId] = useState<string | null>(null);
 
-  const handleSearch = async () => {
+   const handleSearch = useCallback(async () => {
     if (!search.trim()) return;
     
     setLoading(true);
-    // Simulate search delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // Filter mock results based on search
-    const filtered = mockResults.filter(
-      r => r.name.toLowerCase().includes(search.toLowerCase()) ||
-           r.artists[0].name.toLowerCase().includes(search.toLowerCase())
-    );
-    setResults(filtered.length > 0 ? filtered : mockResults);
-    setLoading(false);
-  };
+     try {
+       const { data, error } = await supabase.functions.invoke('search-tracks', {
+         body: { query: search.trim() },
+       });
+ 
+       if (error) throw error;
+       setResults(data.tracks || []);
+     } catch (error) {
+       console.error('Search error:', error);
+       toast.error('Zoeken mislukt');
+       setResults([]);
+     } finally {
+       setLoading(false);
+     }
+   }, [search]);
 
   const handleAdd = async (track: SpotifySearchResult) => {
     setAddingId(track.id);
@@ -83,14 +57,14 @@ export function AddTrackDialog({ onAddTrack, disabled }: AddTrackDialogProps) {
       <DialogTrigger asChild>
         <Button variant="outline" size="default" className="gap-2" disabled={disabled}>
           <Plus className="w-4 h-4" />
-          Add Track
+           Track Toevoegen
         </Button>
       </DialogTrigger>
       <DialogContent className="bg-card border-border max-w-lg">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold flex items-center gap-2">
             <Music className="w-6 h-6 text-spotify-green" />
-            Add a Track
+             Track Toevoegen
           </DialogTitle>
         </DialogHeader>
 
@@ -104,19 +78,13 @@ export function AddTrackDialog({ onAddTrack, disabled }: AddTrackDialogProps) {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                placeholder="Search for a song or artist..."
+                 placeholder="Zoek een nummer of artiest..."
                 className="pl-10 bg-secondary border-0 h-12"
               />
             </div>
-            <Button variant="spotify" onClick={handleSearch} disabled={loading}>
-              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Search'}
+             <Button variant="spotify" onClick={handleSearch} disabled={loading || !search.trim()}>
+               {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Zoek'}
             </Button>
-          </div>
-
-          {/* Info Note */}
-          <div className="flex items-start gap-2 text-sm text-muted-foreground bg-secondary/50 rounded-lg p-3">
-            <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-            <p>Demo mode: Showing sample tracks. Connect Spotify API for real search.</p>
           </div>
 
           {/* Results */}
@@ -156,7 +124,7 @@ export function AddTrackDialog({ onAddTrack, disabled }: AddTrackDialogProps) {
                       {addingId === track.id ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
                       ) : (
-                        'Add'
+                         'Toevoegen'
                       )}
                     </Button>
                   </motion.div>

@@ -5,6 +5,7 @@ import { Header } from '@/components/layout/Header';
 import { CoinDisplay } from '@/components/voting/CoinDisplay';
 import { TrackCard } from '@/components/voting/TrackCard';
 import { AddTrackDialog } from '@/components/voting/AddTrackDialog';
+ import { MusicPlayer } from '@/components/voting/MusicPlayer';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Group, GroupWeek, Track, SpotifySearchResult } from '@/types';
@@ -35,6 +36,8 @@ export default function GroupView() {
   const [memberCount, setMemberCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+   const [playerOpen, setPlayerOpen] = useState(false);
+   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
 
   const coinsLeft = 3 - coinsSpent;
 
@@ -340,11 +343,25 @@ export default function GroupView() {
                 rank={index + 1}
                 onVote={() => handleVote(track.id)}
                 canVote={coinsLeft > 0}
+                 onPlay={() => {
+                   setCurrentTrackIndex(index);
+                   setPlayerOpen(true);
+                 }}
               />
             ))}
           </div>
         )}
       </main>
+       
+       {/* Music Player */}
+       {playerOpen && tracks.length > 0 && (
+         <MusicPlayer
+           tracks={tracks}
+           currentTrackIndex={currentTrackIndex}
+           onTrackChange={setCurrentTrackIndex}
+           onClose={() => setPlayerOpen(false)}
+         />
+       )}
     </div>
   );
 }
