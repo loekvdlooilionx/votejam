@@ -47,12 +47,11 @@
    useEffect(() => {
      if (audioRef.current && currentTrack?.preview_url) {
        audioRef.current.src = currentTrack.preview_url;
-      if (isPlaying || shouldAutoPlay) {
-        audioRef.current.play().then(() => {
-          setIsPlaying(true);
-          setShouldAutoPlay(false);
-        }).catch(console.error);
-       }
+      // Always auto-play when track changes
+      audioRef.current.play().then(() => {
+        setIsPlaying(true);
+        setShouldAutoPlay(false);
+      }).catch(console.error);
      }
   }, [currentTrackIndex, currentTrack, shouldAutoPlay]);
  
@@ -178,11 +177,11 @@
                   <div className="flex items-center gap-2">
                     <p className="text-sm text-muted-foreground truncate">{currentTrack.artist}</p>
                     <a
-                      href={`https://open.spotify.com/search/${encodeURIComponent(currentTrack.title + ' ' + currentTrack.artist)}`}
+                      href={`https://www.youtube.com/results?search_query=${encodeURIComponent(currentTrack.title + ' ' + currentTrack.artist)}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-spotify-green hover:text-spotify-green-bright transition-colors flex-shrink-0"
-                      title="Open in Spotify"
+                      className="text-destructive hover:text-destructive/80 transition-colors flex-shrink-0"
+                      title="Zoek op YouTube"
                     >
                       <ExternalLink className="w-4 h-4" />
                     </a>
