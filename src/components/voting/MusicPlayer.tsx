@@ -1,6 +1,6 @@
   import { useState, useRef, useEffect, useCallback } from 'react';
  import { motion, AnimatePresence } from 'framer-motion';
-  import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, X, Music2, Shuffle } from 'lucide-react';
+  import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, X, Music2, Shuffle, ExternalLink } from 'lucide-react';
  import { Button } from '@/components/ui/button';
  import { Slider } from '@/components/ui/slider';
  import { Track } from '@/types';
@@ -19,6 +19,7 @@
    const [isMuted, setIsMuted] = useState(false);
     const [isShuffled, setIsShuffled] = useState(false);
     const [shuffledOrder, setShuffledOrder] = useState<number[]>([]);
+   const [shouldAutoPlay, setShouldAutoPlay] = useState(false);
    const audioRef = useRef<HTMLAudioElement>(null);
  
    const currentTrack = tracks[currentTrackIndex];
@@ -46,11 +47,14 @@
    useEffect(() => {
      if (audioRef.current && currentTrack?.preview_url) {
        audioRef.current.src = currentTrack.preview_url;
-       if (isPlaying) {
-         audioRef.current.play().catch(console.error);
+      if (isPlaying || shouldAutoPlay) {
+        audioRef.current.play().then(() => {
+          setIsPlaying(true);
+          setShouldAutoPlay(false);
+        }).catch(console.error);
        }
      }
-   }, [currentTrackIndex, currentTrack]);
+  }, [currentTrackIndex, currentTrack, shouldAutoPlay]);
  
    const togglePlay = async () => {
      if (!audioRef.current || !currentTrack?.preview_url) return;
@@ -75,6 +79,7 @@
       if (isShuffled) {
         const currentShuffleIndex = shuffledOrder.indexOf(currentTrackIndex);
         if (currentShuffleIndex < shuffledOrder.length - 1) {
+         setShouldAutoPlay(true);
           onTrackChange(shuffledOrder[currentShuffleIndex + 1]);
         } else {
           setIsPlaying(false);
@@ -82,6 +87,7 @@
         }
      } else {
         if (currentTrackIndex < tracks.length - 1) {
+         setShouldAutoPlay(true);
           onTrackChange(currentTrackIndex + 1);
         } else {
           setIsPlaying(false);
@@ -169,7 +175,18 @@
                )}
                <div className="min-w-0">
                  <p className="font-semibold text-foreground truncate">{currentTrack.title}</p>
-                 <p className="text-sm text-muted-foreground truncate">{currentTrack.artist}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm text-muted-foreground truncate">{currentTrack.artist}</p>
+                    <a
+                      href={`https://open.spotify.com/search/${encodeURIComponent(currentTrack.title + ' ' + currentTrack.artist)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-spotify-green hover:text-spotify-green-bright transition-colors flex-shrink-0"
+                      title="Open in Spotify"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                    </a>
+                  </div>
                </div>
              </div>
  
