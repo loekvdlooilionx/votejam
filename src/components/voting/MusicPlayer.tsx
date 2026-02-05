@@ -1,6 +1,6 @@
- import { useState, useRef, useEffect } from 'react';
+  import { useState, useRef, useEffect, useCallback } from 'react';
  import { motion, AnimatePresence } from 'framer-motion';
- import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, X, Music2 } from 'lucide-react';
+  import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, X, Music2, Shuffle } from 'lucide-react';
  import { Button } from '@/components/ui/button';
  import { Slider } from '@/components/ui/slider';
  import { Track } from '@/types';
@@ -17,6 +17,8 @@
    const [progress, setProgress] = useState(0);
    const [volume, setVolume] = useState(0.7);
    const [isMuted, setIsMuted] = useState(false);
+    const [isShuffled, setIsShuffled] = useState(false);
+    const [shuffledOrder, setShuffledOrder] = useState<number[]>([]);
    const audioRef = useRef<HTMLAudioElement>(null);
  
    const currentTrack = tracks[currentTrackIndex];
@@ -26,6 +28,20 @@
        audioRef.current.volume = isMuted ? 0 : volume;
      }
    }, [volume, isMuted]);
+
+    // Initialize shuffled order when shuffle is toggled or tracks change
+    useEffect(() => {
+      if (isShuffled) {
+        const indices = tracks.map((_, i) => i).filter(i => i !== currentTrackIndex);
+        // Fisher-Yates shuffle
+        for (let i = indices.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [indices[i], indices[j]] = [indices[j], indices[i]];
+        }
+        // Put current track at the start
+        setShuffledOrder([currentTrackIndex, ...indices]);
+      }
+    }, [isShuffled, tracks.length]);
  
    useEffect(() => {
      if (audioRef.current && currentTrack?.preview_url) {
@@ -56,23 +72,47 @@
  
    const handleEnded = () => {
      // Auto-play next track
-     if (currentTrackIndex < tracks.length - 1) {
-       onTrackChange(currentTrackIndex + 1);
+      if (isShuffled) {
+        const currentShuffleIndex = shuffledOrder.indexOf(currentTrackIndex);
+        if (currentShuffleIndex < shuffledOrder.length - 1) {
+          onTrackChange(shuffledOrder[currentShuffleIndex + 1]);
+        } else {
+          setIsPlaying(false);
+          setProgress(0);
+        }
      } else {
-       setIsPlaying(false);
-       setProgress(0);
+        if (currentTrackIndex < tracks.length - 1) {
+          onTrackChange(currentTrackIndex + 1);
+        } else {
+          setIsPlaying(false);
+          setProgress(0);
+        }
      }
    };
  
    const handlePrevious = () => {
-     if (currentTrackIndex > 0) {
-       onTrackChange(currentTrackIndex - 1);
+      if (isShuffled) {
+        const currentShuffleIndex = shuffledOrder.indexOf(currentTrackIndex);
+        if (currentShuffleIndex > 0) {
+          onTrackChange(shuffledOrder[currentShuffleIndex - 1]);
+        }
+      } else {
+        if (currentTrackIndex > 0) {
+          onTrackChange(currentTrackIndex - 1);
+        }
      }
    };
  
    const handleNext = () => {
-     if (currentTrackIndex < tracks.length - 1) {
-       onTrackChange(currentTrackIndex + 1);
+      if (isShuffled) {
+        const currentShuffleIndex = shuffledOrder.indexOf(currentTrackIndex);
+        if (currentShuffleIndex < shuffledOrder.length - 1) {
+          onTrackChange(shuffledOrder[currentShuffleIndex + 1]);
+        }
+      } else {
+        if (currentTrackIndex < tracks.length - 1) {
+          onTrackChange(currentTrackIndex + 1);
+        }
      }
    };
  
@@ -135,11 +175,20 @@
  
              {/* Controls */}
              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setIsShuffled(!isShuffled)}
+                  className={isShuffled ? "text-primary" : "text-muted-foreground hover:text-foreground"}
+                >
+                  <Shuffle className="w-5 h-5" />
+                </Button>
+
                <Button
                  variant="ghost"
                  size="icon"
                  onClick={handlePrevious}
-                 disabled={currentTrackIndex === 0}
+                  disabled={isShuffled ? shuffledOrder.indexOf(currentTrackIndex) === 0 : currentTrackIndex === 0}
                  className="text-muted-foreground hover:text-foreground"
                >
                  <SkipBack className="w-5 h-5" />
@@ -163,7 +212,7 @@
                  variant="ghost"
                  size="icon"
                  onClick={handleNext}
-                 disabled={currentTrackIndex === tracks.length - 1}
+                  disabled={isShuffled ? shuffledOrder.indexOf(currentTrackIndex) === shuffledOrder.length - 1 : currentTrackIndex === tracks.length - 1}
                  className="text-muted-foreground hover:text-foreground"
                >
                  <SkipForward className="w-5 h-5" />
