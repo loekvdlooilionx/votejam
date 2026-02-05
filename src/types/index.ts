@@ -48,6 +48,12 @@ export interface Track {
   added_by: string | null;
   added_at: string;
   vote_count?: number;
+  voters?: Array<{
+    user_id: string;
+    display_name: string | null;
+    avatar_url: string | null;
+    coins_spent: number;
+  }>;
 }
 
 export interface Vote {
@@ -57,6 +63,10 @@ export interface Vote {
   group_week_id: string;
   coins_spent: number;
   voted_at: string;
+  profile?: {
+    display_name: string | null;
+    avatar_url: string | null;
+  };
 }
 
 export interface SpotifySearchResult {

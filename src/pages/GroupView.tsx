@@ -18,7 +18,8 @@ import {
   Calendar,
   Users,
   Crown,
-  ListMusic
+  ListMusic,
+  Play
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -91,22 +92,57 @@ export default function GroupView() {
           .from('tracks')
           .select(`
             *,
-            votes (coins_spent)
+            votes (
+              coins_spent,
+              user_id
+            )
           `)
           .eq('group_week_id', weekData.id)
           .order('added_at', { ascending: false });
 
         if (tracksError) throw tracksError;
 
+        // Fetch all user profiles that voted
+        const allVoterIds = new Set<string>();
+        (tracksData || []).forEach(track => {
+          (track.votes as any[])?.forEach((v: any) => {
+            allVoterIds.add(v.user_id);
+          });
+        });
+
+        let voterProfiles: Record<string, { display_name: string | null; avatar_url: string | null }> = {};
+        if (allVoterIds.size > 0) {
+          const { data: profiles } = await supabase
+            .from('profiles_public')
+            .select('user_id, display_name, avatar_url')
+            .in('user_id', Array.from(allVoterIds));
+          
+          profiles?.forEach(p => {
+            if (p.user_id) {
+              voterProfiles[p.user_id] = {
+                display_name: p.display_name,
+                avatar_url: p.avatar_url,
+              };
+            }
+          });
+        }
+
         // Calculate vote counts
         const tracksWithVotes = (tracksData || []).map(track => ({
           ...track,
           vote_count: (track.votes as any[])?.reduce((sum: number, v: any) => sum + v.coins_spent, 0) || 0,
+          voters: (track.votes as any[])?.map((v: any) => ({
+            user_id: v.user_id,
+            display_name: voterProfiles[v.user_id]?.display_name || null,
+            avatar_url: voterProfiles[v.user_id]?.avatar_url || null,
+            coins_spent: v.coins_spent,
+          })) || [],
         }));
 
-        // Sort by votes
-        tracksWithVotes.sort((a, b) => b.vote_count - a.vote_count);
-        setTracks(tracksWithVotes);
+        // Filter to only tracks with votes, then sort by votes
+        const votedTracks = tracksWithVotes.filter(t => t.vote_count > 0);
+        votedTracks.sort((a, b) => b.vote_count - a.vote_count);
+        setTracks(votedTracks);
 
         // Fetch user's coins spent
         const { data: votesData, error: votesError } = await supabase
@@ -144,7 +180,7 @@ export default function GroupView() {
     if (!activeWeek || !user) return;
 
     try {
-      const { error } = await supabase
+      const { data: newTrack, error } = await supabase
         .from('tracks')
         .insert({
           spotify_id: spotifyTrack.id,
@@ -155,7 +191,9 @@ export default function GroupView() {
           preview_url: spotifyTrack.preview_url,
           group_week_id: activeWeek.id,
           added_by: user.id,
-        });
+        })
+        .select()
+        .single();
 
       if (error) {
         if (error.code === '23505') {
@@ -164,6 +202,18 @@ export default function GroupView() {
           throw error;
         }
         return;
+      }
+
+      // Auto-vote for the track you just added (if you have coins left)
+      if (newTrack && coinsLeft > 0) {
+        await supabase
+          .from('votes')
+          .insert({
+            track_id: newTrack.id,
+            user_id: user.id,
+            group_week_id: activeWeek.id,
+            coins_spent: 1,
+          });
       }
 
       toast.success('Track added!');
@@ -329,27 +379,50 @@ export default function GroupView() {
         ) : tracks.length === 0 ? (
           <div className="text-center py-20">
             <Music className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-foreground mb-2">No tracks yet</h3>
+            <h3 className="text-lg font-semibold text-foreground mb-2">Nog geen nummers met stemmen</h3>
             <p className="text-muted-foreground mb-6">
-              Be the first to add a track to this week's voting!
+              Voeg een nummer toe om automatisch je eerste stem te geven!
             </p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {tracks.map((track, index) => (
-              <TrackCard
-                key={track.id}
-                track={track}
-                rank={index + 1}
-                onVote={() => handleVote(track.id)}
-                canVote={coinsLeft > 0}
-                 onPlay={() => {
-                   setCurrentTrackIndex(index);
-                   setPlayerOpen(true);
-                 }}
-              />
-            ))}
-          </div>
+          <>
+            {/* Play all button */}
+            {tracks.some(t => t.preview_url) && (
+              <div className="mb-6">
+                <Button
+                  variant="spotify"
+                  size="lg"
+                  onClick={() => {
+                    const firstPlayableIndex = tracks.findIndex(t => t.preview_url);
+                    if (firstPlayableIndex >= 0) {
+                      setCurrentTrackIndex(firstPlayableIndex);
+                      setPlayerOpen(true);
+                    }
+                  }}
+                  className="gap-2"
+                >
+                  <Play className="w-5 h-5" fill="currentColor" />
+                  Alles Afspelen
+                </Button>
+              </div>
+            )}
+            
+            <div className="space-y-3">
+              {tracks.map((track, index) => (
+                <TrackCard
+                  key={track.id}
+                  track={track}
+                  rank={index + 1}
+                  onVote={() => handleVote(track.id)}
+                  canVote={coinsLeft > 0}
+                   onPlay={() => {
+                     setCurrentTrackIndex(index);
+                     setPlayerOpen(true);
+                   }}
+                />
+              ))}
+            </div>
+          </>
         )}
       </main>
        
